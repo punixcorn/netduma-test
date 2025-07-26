@@ -1,0 +1,43 @@
+name: Build wget packages
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Build Docker image
+      run: docker build -t netduma-wget-build .
+    
+    - name: Build packages
+      run: |
+        mkdir -p output
+        docker run --rm \
+          -v $(pwd)/output:/home/developer/output \
+          -v $(pwd)/build-wget.sh:/tmp/build-script:ro \
+          netduma-wget-build \
+          bash -c "
+            cd /mt7621 && cp /tmp/build-script . && chmod +x build-script && ./build-script
+            mkdir -p /home/developer/output/ramips && cp bin/packages/mips_24kc/packages/*wget*.ipk /home/developer/output/ramips/ || true
+            
+            cd /x86 && cp /tmp/build-script . && chmod +x build-script && ./build-script  
+            mkdir -p /home/developer/output/x86 && cp bin/packages/x86_64/packages/*wget*.ipk /home/developer/output/x86/ || true
+          "
+    
+    - name: Check results
+      run: |
+        echo "Built packages:"
+        find output/ -name "*.ipk" -exec ls -la {} \;
+    
+    - name: Upload packages
+      uses: actions/upload-artifact@v3
+      with:
+        name: wget-packages
+        path: output/
