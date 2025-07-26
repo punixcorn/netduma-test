@@ -1,0 +1,74 @@
+steps of what i did
+# the wget was in feeds/packages/net/wget
+
+first do this to get the wget files, --
+./scripts/feed updates -a 
+./scripts/feed install wget
+
+# make menuconfig # select wget-ssl and wget-no-ssl ( network->file transfer)
+
+echo "CONFIG_PACKAGE_wget-nossl=y" >> .config
+echo "CONFIG_PACKAGE_wget-ssl=y" >> .config
+
+
+
+# Add Netduma banner flag if enabled
+ifdef CONFIG_WGET_NETDUMA_BANNER
+  TARGET_CFLAGS += -DNETDUMA_BANNER
+endif
+
+
+make package/wget/prepare -j$(nproc)
+
+export  QUILT_PATCHES=../../../../package/feeds/packages/wget/patches
+
+cd build_dir/target-*/wget-nossl
+
+quilt new 100-add-netduma-banner.patch
+
+quilt add src/main.c
+
+grep -n "help\|version\|usage" src/main.c
+
+quilt edit src/main.c
+-- add
+#ifdef NETDUMA_BANNER
+  printf("Netduma Test\n");
+#endif
+
+quilt refersh
+
+quilt diff 
+
+```
+--- a/src/main.c
++++ b/src/main.c
+@@ -582,6 +582,11 @@ print_usage (_GL_UNUSED int error)
+ _Noreturn static void
+ print_help (void)
+ {
++
++#ifdef NETDUMA_BANNER
++  printf("This is a Netduma Banner Test, without specification it was placed here\n");
++#endif
++
+ #ifndef TESTING
+   /* We split the help text this way to ease translation of individual
+      entries.  */
+@@ -1256,6 +1261,10 @@ print_version (void)
+   char *env_wgetrc, *user_wgetrc;
+   int i;
+
++#ifdef NETDUMA_BANNER
++  printf("This is a Netduma Banner Test\n");
++#endif
++
+   if (printf (_("GNU Wget %s built on %s.\n\n"), version_string, OS_TYPE) < 0)
+     exit (WGET_EXIT_IO_FAIL);
+```
+
+make package/wget/clean 
+make menuconfig # select both 
+
+make package/wget/compile
+find bin/ -iname "*wget*.ipk"
